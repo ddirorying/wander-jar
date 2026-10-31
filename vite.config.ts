@@ -43,6 +43,21 @@ export default defineConfig({
             },
           },
           {
+            // 지도 타일·글꼴·스타일: 한 번 본 지역은 오프라인에서도 보이게
+            urlPattern: ({ url }) => url.hostname === 'tiles.openfreemap.org' && url.pathname.startsWith('/styles/'),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'wj-map-style', cacheableResponse: { statuses: [0, 200] } },
+          },
+          {
+            urlPattern: ({ url }) => url.hostname === 'tiles.openfreemap.org',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'wj-map',
+              expiration: { maxEntries: 3000, maxAgeSeconds: 60 * 60 * 24 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          {
             // 링크로 저장한 사진: 한 번 본 사진은 오프라인에서도 보이게
             urlPattern: ({ request, sameOrigin }) => !sameOrigin && request.destination === 'image',
             handler: 'CacheFirst',

@@ -11,6 +11,11 @@ export function WishList({ d }: { d: Destination }) {
   const [filter, setFilter] = useState<WishCategory | 'all'>('all')
   const [editing, setEditing] = useState<Wish | null>(null)
   const [reviewing, setReviewing] = useState<Wish | null>(null)
+  // 일정에 들어간 항목 표시용
+  const scheduledDay = useLiveQuery(async () => {
+    const st = await db.stops.where('destinationId').equals(d.id).toArray()
+    return new Map(st.filter((x) => x.wishId).map((x) => [x.wishId!, x.day]))
+  }, [d.id])
 
   const sorted = useMemo(
     () =>
@@ -76,6 +81,9 @@ export function WishList({ d }: { d: Destination }) {
                       <span className="wish-title">
                         {w.priority === 'must' && <Icon name="star" size={13} filled className="must" />}
                         {w.title}
+                        {scheduledDay?.has(w.id) && (
+                          <span className="plan-badge">{scheduledDay.get(w.id) ? `${scheduledDay.get(w.id)}일차` : '일정 미정'}</span>
+                        )}
                       </span>
                       {w.review ? (
                         <span className="wish-review">“{w.review}”</span>

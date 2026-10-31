@@ -17,11 +17,18 @@
 - 모든 데이터는 **그 기기의 브라우저 안에만** 저장됩니다. 서버로 보내지 않습니다.
 - 기기를 옮기거나 혹시 모를 상황에 대비해 설정 → **백업 파일 보내기**로 MYBOX·구글 드라이브·카톡에 보관하세요.
 
+## 다른 사람과 나누기
+여행지 화면 오른쪽 위 공유 버튼 → 그 여행지(하고 싶은 일·일정·사진)를 파일로 보내요.
+받은 사람은 이 앱의 설정 → **백업 파일 가져오기**로 열면 됩니다. 내 저축 기록은 보내지 않습니다.
+
 ## 단계
 - [x] **1단계** — 여행지 카드, 하고 싶은 일, 여행 저축, 내보내기/가져오기, 오프라인
-- [ ] **2단계** — 무드보드 (유튜브 영상, 스포티파이/유튜브 뮤직, 사진, 문장·영화·책)
-- [ ] **3단계** — 몰입 모드, 오늘의 여행지, D-day, 오랜만에 다시 보기
-- [ ] (선택) MYBOX 또는 구글 드라이브 자동 동기화
+- [x] **2단계** — 지도 일정(날짜별로 장소를 담으면 순서대로 선이 이어짐, 구글 지도 길찾기 연결), 여행지 하나 보내기
+- [ ] **3단계** — 무드보드 (유튜브 영상, 스포티파이/유튜브 뮤직, 사진, 문장·영화·책)
+- [ ] **4단계** — 몰입 모드, 오늘의 여행지, D-day, 오랜만에 다시 보기
+- [ ] **5단계** — 다른 사람과 실시간 함께 편집 (Firebase)
+
+지도: © [OpenFreeMap](https://openfreemap.org) · © OpenMapTiles · © OpenStreetMap 기여자 / 장소 검색: OpenStreetMap Nominatim
 
 ## 개발자용
 ```bash
@@ -29,5 +36,5 @@ npm install
 npm run dev      # http://localhost:5173/wander-jar/
 npm run build    # dist/ 에 결과물
 ```
-React + Vite + TypeScript, 저장은 IndexedDB(Dexie), 오프라인은 vite-plugin-pwa.
+React + Vite + TypeScript, 저장은 IndexedDB(Dexie), 오프라인은 vite-plugin-pwa, 지도는 MapLibre GL.
 `main`에 합쳐지면 GitHub Actions가 GitHub Pages로 자동 배포합니다.

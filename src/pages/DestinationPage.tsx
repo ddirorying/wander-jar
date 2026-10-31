@@ -8,15 +8,19 @@ import { StatusStamp } from '../components/StatusStamp'
 import { EditDestinationSheet } from './EditDestinationSheet'
 import { WishList } from './WishList'
 import { SavingsPanel } from './SavingsPanel'
+import { ItineraryPanel } from './ItineraryPanel'
+import { exportBackup } from '../lib/backup'
 import { formatDate, formatKRW, formatMonths } from '../lib/format'
 
 export function DestinationPage() {
   const { id = '' } = useParams()
   const nav = useNavigate()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') === 'savings' ? 'savings' : 'wishes'
+  const t = params.get('tab')
+  const tab = t === 'savings' || t === 'plan' ? t : 'wishes'
   const d = useLiveQuery(() => db.destinations.get(id).then((x) => x ?? null), [id])
   const [editing, setEditing] = useState(false)
+  const [shareMsg, setShareMsg] = useState('')
 
   // "오랫동안 안 본 여행지"를 위해 열어본 시간 기록 (3단계에서 사용)
   useEffect(() => {
@@ -32,6 +36,17 @@ export function DestinationPage() {
 
   if (d === undefined) return <div className="page" />
   if (d === null) return <Navigate to="/" replace />
+
+  const share = async () => {
+    try {
+      const r = await exportBackup(true, d.id)
+      if (r === 'downloaded') setShareMsg('여행지 파일을 내려받았어요. 카톡 등으로 보내 주세요.')
+      else if (r === 'shared') setShareMsg('')
+    } catch {
+      setShareMsg('파일을 만들지 못했어요.')
+    }
+    setTimeout(() => setShareMsg(''), 4000)
+  }
 
   const goBack = () => (window.history.state?.idx > 0 ? nav(-1) : nav('/', { replace: true }))
   const when = formatMonths(d.months)
@@ -51,9 +66,14 @@ export function DestinationPage() {
           <button className="icon-btn glass" onClick={goBack} aria-label="뒤로">
             <Icon name="back" />
           </button>
-          <button className="icon-btn glass" onClick={() => setEditing(true)} aria-label="고치기">
-            <Icon name="edit" size={20} />
-          </button>
+          <span className="hero-actions">
+            <button className="icon-btn glass" onClick={share} aria-label="이 여행지 보내기">
+              <Icon name="share" size={20} />
+            </button>
+            <button className="icon-btn glass" onClick={() => setEditing(true)} aria-label="고치기">
+              <Icon name="edit" size={20} />
+            </button>
+          </span>
         </div>
         <div className="hero-text">
           <StatusStamp status={d.status} />
@@ -106,6 +126,9 @@ export function DestinationPage() {
           <button role="tab" aria-selected={tab === 'wishes'} className={tab === 'wishes' ? 'on' : ''} onClick={() => setParams({}, { replace: true })}>
             하고 싶은 일
           </button>
+          <button role="tab" aria-selected={tab === 'plan'} className={tab === 'plan' ? 'on' : ''} onClick={() => setParams({ tab: 'plan' }, { replace: true })}>
+            일정
+          </button>
           <button
             role="tab"
             aria-selected={tab === 'savings'}
@@ -116,8 +139,14 @@ export function DestinationPage() {
           </button>
         </div>
 
-        {tab === 'wishes' ? <WishList d={d} /> : <SavingsPanel d={d} />}
+        {tab === 'wishes' ? <WishList d={d} /> : tab === 'plan' ? <ItineraryPanel d={d} /> : <SavingsPanel d={d} />}
       </div>
+
+      {shareMsg && (
+        <p className="toast" role="status">
+          {shareMsg}
+        </p>
+      )}
 
       {editing && (
         <EditDestinationSheet
