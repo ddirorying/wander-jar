@@ -1,9 +1,9 @@
 import { db, setMeta } from '../db'
-import type { Destination, MoodItem, SavingsEntry, Wish } from '../types'
+import type { Destination, MoodItem, SavingsEntry, Stop, Wish } from '../types'
 import { todayStr } from './format'
 
 export const BACKUP_APP = 'wander-jar'
-export const BACKUP_VERSION = 1
+export const BACKUP_VERSION = 2
 
 interface ImageExport {
   id: string
@@ -18,10 +18,13 @@ export interface BackupFile {
   app: typeof BACKUP_APP
   schemaVersion: number
   exportedAt: string
+  /** 'all' = 전체 백업, 'single' = 여행지 하나 보내기 */
+  kind?: 'all' | 'single'
   destinations: Destination[]
   wishes: Wish[]
   savings: SavingsEntry[]
   moods: MoodItem[]
+  stops: Stop[]
   images: ImageExport[]
 }
 
@@ -39,14 +42,21 @@ async function dataUrlToBlob(s: string): Promise<Blob> {
   return res.blob()
 }
 
-export async function buildBackup(): Promise<BackupFile> {
-  const [destinations, wishes, savings, moods, images] = await Promise.all([
+export async function buildBackup(destinationId?: string): Promise<BackupFile> {
+  const one = <T extends { destinationId: string }>(rows: T[]) => (destinationId ? rows.filter((r) => r.destinationId === destinationId) : rows)
+  const [allD, wishes, savings, moods, stops] = await Promise.all([
     db.destinations.toArray(),
-    db.wishes.toArray(),
-    db.savings.toArray(),
-    db.moods.toArray(),
-    db.images.toArray(),
+    db.wishes.toArray().then(one),
+    // 여행지 하나를 다른 사람에게 보낼 때는 내 저축 기록은 빼고 보냄
+    destinationId ? Promise.resolve([] as SavingsEntry[]) : db.savings.toArray(),
+    db.moods.toArray().then(one),
+    db.stops.toArray().then(one),
   ])
+  const destinations = destinationId ? allD.filter((d) => d.id === destinationId) : allD
+  const imageIds = destinationId
+    ? new Set([...destinations.map((d) => d.coverImageId), ...moods.map((m) => m.imageId)].filter(Boolean) as string[])
+    : undefined
+  const images = (await db.images.toArray()).filter((i) => !imageIds || imageIds.has(i.id))
   const imgs: ImageExport[] = []
   for (const i of images) {
     imgs.push({
@@ -62,10 +72,12 @@ export async function buildBackup(): Promise<BackupFile> {
     app: BACKUP_APP,
     schemaVersion: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
+    kind: destinationId ? 'single' : 'all',
     destinations,
     wishes,
     savings,
     moods,
+    stops,
     images: imgs,
   }
 }
@@ -73,10 +85,18 @@ export async function buildBackup(): Promise<BackupFile> {
 export type ExportResult = 'shared' | 'downloaded' | 'cancelled'
 
 /** 안드로이드에서는 공유 메뉴(MYBOX·구글 드라이브·카톡 등)를 띄우고, 안 되면 파일로 내려받음 */
-export async function exportBackup(preferShare: boolean): Promise<ExportResult> {
-  const data = await buildBackup()
+export async function exportBackup(preferShare: boolean, destinationId?: string): Promise<ExportResult> {
+  const data = await buildBackup(destinationId)
   const text = JSON.stringify(data)
-  const base = `wander-jar-backup-${todayStr().replaceAll('-', '')}`
+  const single = data.destinations[0]
+  const safeName = (single?.city || single?.country || '').replace(/[\\/:*?"<>|\s]+/g, '')
+  const base = destinationId
+    ? `wander-jar-${safeName || 'trip'}-${todayStr().replaceAll('-', '')}`
+    : `wander-jar-backup-${todayStr().replaceAll('-', '')}`
+  const shareTitle = destinationId ? `Wander Jar · ${single?.city || single?.country}` : 'Wander Jar 백업'
+  const shareText = destinationId
+    ? `Wander Jar 여행지 파일이에요. https://ddirorying.github.io/wander-jar/ 에서 설정 → 백업 파일 가져오기로 열어 보세요.`
+    : undefined
 
   if (preferShare && navigator.share && navigator.canShare) {
     // 크롬은 공유할 수 있는 파일 형식이 정해져 있어서 .json 이 안 되면 .txt 로 시도
@@ -87,8 +107,8 @@ export async function exportBackup(preferShare: boolean): Promise<ExportResult> 
     for (const file of candidates) {
       if (navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: 'Wander Jar 백업' })
-          await setMeta('lastBackupAt', Date.now())
+          await navigator.share({ files: [file], title: shareTitle, text: shareText })
+          if (!destinationId) await setMeta('lastBackupAt', Date.now())
           return 'shared'
         } catch (e) {
           if ((e as DOMException).name === 'AbortError') return 'cancelled'
@@ -107,7 +127,7 @@ export async function exportBackup(preferShare: boolean): Promise<ExportResult> 
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 10000)
-  await setMeta('lastBackupAt', Date.now())
+  if (!destinationId) await setMeta('lastBackupAt', Date.now())
   return 'downloaded'
 }
 
@@ -127,6 +147,7 @@ export function parseBackup(text: string): BackupFile {
   data.wishes ??= []
   data.savings ??= []
   data.moods ??= []
+  data.stops ??= []
   data.images ??= []
   return data
 }
@@ -135,6 +156,7 @@ export interface ImportSummary {
   destinations: number
   wishes: number
   savings: number
+  stops: number
 }
 
 /**
@@ -152,13 +174,14 @@ export async function importBackup(data: BackupFile, mode: 'merge' | 'replace'):
       thumb: await dataUrlToBlob(i.thumb),
     })),
   )
-  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images], async () => {
+  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images, db.stops], async () => {
     if (mode === 'replace') {
-      await Promise.all([db.destinations.clear(), db.wishes.clear(), db.savings.clear(), db.moods.clear(), db.images.clear()])
+      await Promise.all([db.destinations.clear(), db.wishes.clear(), db.savings.clear(), db.moods.clear(), db.images.clear(), db.stops.clear()])
       await db.destinations.bulkPut(data.destinations)
       await db.wishes.bulkPut(data.wishes)
       await db.savings.bulkPut(data.savings)
       await db.moods.bulkPut(data.moods)
+      await db.stops.bulkPut(data.stops)
       await db.images.bulkPut(images)
       return
     }
@@ -166,17 +189,27 @@ export async function importBackup(data: BackupFile, mode: 'merge' | 'replace'):
       rows.filter((r, i) => !existing[i] || (r.updatedAt ?? 0) >= (existing[i]!.updatedAt ?? 0))
     const exD = await db.destinations.bulkGet(data.destinations.map((d) => d.id))
     const exW = await db.wishes.bulkGet(data.wishes.map((w) => w.id))
+    const exS = await db.stops.bulkGet(data.stops.map((x) => x.id))
     await db.destinations.bulkPut(keepNewer(data.destinations, exD))
     await db.wishes.bulkPut(keepNewer(data.wishes, exW))
+    await db.stops.bulkPut(keepNewer(data.stops, exS))
     await db.savings.bulkPut(data.savings)
     await db.moods.bulkPut(data.moods)
     await db.images.bulkPut(images)
   })
-  return { destinations: data.destinations.length, wishes: data.wishes.length, savings: data.savings.length }
+  return { destinations: data.destinations.length, wishes: data.wishes.length, savings: data.savings.length, stops: data.stops.length }
 }
 
 export async function wipeAll() {
-  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images, db.meta], async () => {
-    await Promise.all([db.destinations.clear(), db.wishes.clear(), db.savings.clear(), db.moods.clear(), db.images.clear(), db.meta.clear()])
+  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images, db.stops, db.meta], async () => {
+    await Promise.all([
+      db.destinations.clear(),
+      db.wishes.clear(),
+      db.savings.clear(),
+      db.moods.clear(),
+      db.images.clear(),
+      db.stops.clear(),
+      db.meta.clear(),
+    ])
   })
 }

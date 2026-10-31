@@ -66,7 +66,10 @@ export function SettingsPage() {
     setBusy(true)
     try {
       const r = await importBackup(pending, mode)
-      setMessage(`가져오기 완료 — 여행지 ${r.destinations}곳, 하고 싶은 일 ${r.wishes}개, 저축 기록 ${r.savings}건`)
+      setMessage(
+        `가져오기 완료 — 여행지 ${r.destinations}곳, 하고 싶은 일 ${r.wishes}개, 일정 장소 ${r.stops}곳` +
+          (r.savings ? `, 저축 기록 ${r.savings}건` : ''),
+      )
     } catch {
       setMessage('가져오는 중에 문제가 생겼어요. 파일이 손상되지 않았는지 확인해 주세요.')
     } finally {
@@ -162,25 +165,46 @@ export function SettingsPage() {
         </button>
       </section>
 
-      <p className="muted center small app-version">Wander Jar · 1단계 v{__APP_VERSION__}</p>
+      <section className="card">
+        <h2 className="card-title">다른 사람과 나누기</h2>
+        <p className="muted small">
+          여행지 화면 오른쪽 위 <Icon name="share" size={14} /> 버튼을 누르면 그 여행지(하고 싶은 일·일정·사진)를 파일로 보낼 수 있어요. 받은 사람은
+          이 앱의 ‘백업 파일 가져오기’로 열면 돼요. 내 저축 기록은 보내지 않아요.
+        </p>
+      </section>
+
+      <p className="muted center small app-version">
+        Wander Jar · 2단계 v{__APP_VERSION__}
+        <br />
+        지도 © OpenFreeMap · OpenMapTiles · OpenStreetMap 기여자
+      </p>
 
       {pending && (
-        <Sheet title="백업 가져오기" onClose={() => setPending(null)}>
-          <p>
-            백업 파일 ({new Date(pending.exportedAt).toLocaleString('ko-KR')})에 여행지 <strong>{pending.destinations.length}곳</strong>이
-            있어요.
-          </p>
+        <Sheet title={pending.kind === 'single' ? '여행지 받기' : '백업 가져오기'} onClose={() => setPending(null)}>
+          {pending.kind === 'single' ? (
+            <p>
+              <strong>‘{pending.destinations[0]?.city || pending.destinations[0]?.country}’</strong> 여행지 파일이에요. 하고 싶은 일과 일정이 함께
+              들어 있어요. 내 보관함에 더할까요?
+            </p>
+          ) : (
+            <p>
+              백업 파일 ({new Date(pending.exportedAt).toLocaleString('ko-KR')})에 여행지 <strong>{pending.destinations.length}곳</strong>이
+              있어요.
+            </p>
+          )}
           <div className="stack-sm">
             <button className="btn btn-primary btn-block" disabled={busy} onClick={() => doImport('merge')}>
               합치기 — 지금 데이터는 두고, 백업 내용을 더하기
             </button>
-            <button
-              className="btn btn-ghost btn-block"
-              disabled={busy}
-              onClick={() => confirm('이 기기 데이터를 모두 지우고 백업으로 바꿀까요?') && doImport('replace')}
-            >
-              바꾸기 — 이 기기 데이터를 백업으로 교체
-            </button>
+            {pending.kind !== 'single' && (
+              <button
+                className="btn btn-ghost btn-block"
+                disabled={busy}
+                onClick={() => confirm('이 기기 데이터를 모두 지우고 백업으로 바꿀까요?') && doImport('replace')}
+              >
+                바꾸기 — 이 기기 데이터를 백업으로 교체
+              </button>
+            )}
           </div>
         </Sheet>
       )}

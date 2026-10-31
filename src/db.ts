@@ -1,10 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Destination, MetaRow, MoodItem, SavingsEntry, StoredImage, Wish } from './types'
+import type { Destination, MetaRow, MoodItem, SavingsEntry, Stop, StoredImage, Wish } from './types'
 
 export const db = new Dexie('wander-jar') as Dexie & {
   destinations: EntityTable<Destination, 'id'>
   wishes: EntityTable<Wish, 'id'>
   savings: EntityTable<SavingsEntry, 'id'>
+  stops: EntityTable<Stop, 'id'>
   moods: EntityTable<MoodItem, 'id'>
   images: EntityTable<StoredImage, 'id'>
   meta: EntityTable<MetaRow, 'key'>
@@ -17,6 +18,11 @@ db.version(1).stores({
   moods: 'id, destinationId',
   images: 'id',
   meta: 'key',
+})
+
+// 2단계: 지도 일정
+db.version(2).stores({
+  stops: 'id, destinationId',
 })
 
 export const newId = () =>
@@ -45,7 +51,7 @@ export async function requestPersist() {
 }
 
 export async function deleteDestination(id: string) {
-  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images], async () => {
+  await db.transaction('rw', [db.destinations, db.wishes, db.savings, db.moods, db.images, db.stops], async () => {
     const d = await db.destinations.get(id)
     const moods = await db.moods.where('destinationId').equals(id).toArray()
     const imageIds = [d?.coverImageId, ...moods.map((m) => m.imageId)].filter(Boolean) as string[]
@@ -53,6 +59,7 @@ export async function deleteDestination(id: string) {
     await db.wishes.where('destinationId').equals(id).delete()
     await db.savings.where('destinationId').equals(id).delete()
     await db.moods.where('destinationId').equals(id).delete()
+    await db.stops.where('destinationId').equals(id).delete()
     await db.destinations.delete(id)
   })
 }

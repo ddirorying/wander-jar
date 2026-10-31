@@ -30,6 +30,11 @@ export interface Destination {
   updatedAt: number
   lastViewedAt?: number
   viewCount: number
+  /** 지도 중심 (도시 위치) */
+  lat?: number
+  lng?: number
+  /** 일정 탭의 날 수 (직접 늘린 경우) */
+  planDays?: number
 }
 
 export interface Wish {
@@ -58,7 +63,24 @@ export interface SavingsEntry {
   createdAt: number
 }
 
-/** 2단계(무드보드)에서 사용 — 미리 자리만 만들어 둠 */
+/** 일정의 한 장소. day 0 = 아직 날을 안 정한 곳 */
+export interface Stop {
+  id: string
+  destinationId: string
+  day: number
+  order: number
+  name: string
+  address?: string
+  lat: number
+  lng: number
+  time?: string // HH:MM
+  memo?: string
+  wishId?: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 3단계(무드보드)에서 사용 — 미리 자리만 만들어 둠 */
 export interface MoodItem {
   id: string
   destinationId: string
