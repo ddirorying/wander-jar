@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="112" fill="#f3eee4"/>
+  <path d="M190 150 C 190 178, 122 196, 122 270 L 122 392 C 122 418, 140 436, 166 436 L 346 436 C 372 436, 390 418, 390 392 L 390 270 C 390 196, 322 178, 322 150 Z" fill="#fffdf9" stroke="#1d1b18" stroke-width="14" stroke-linejoin="round"/>
+  <clipPath id="c"><path d="M190 150 C 190 178, 122 196, 122 270 L 122 392 C 122 418, 140 436, 166 436 L 346 436 C 372 436, 390 418, 390 392 L 390 270 C 390 196, 322 178, 322 150 Z"/></clipPath>
+  <g clip-path="url(#c)">
+    <rect x="100" y="300" width="320" height="160" fill="#c39a4a"/>
+    <path d="M100 300 Q 150 286 200 300 T 300 300 T 420 300 V 320 H 100 Z" fill="#e7cf98"/>
+    <circle cx="300" cy="238" r="26" fill="#b5462f"/>
+    <path d="M150 300 L 215 236 L 252 268 L 290 226 L 370 300 Z" fill="#2f5d62" opacity=".9"/>
+  </g>
+  <path d="M190 150 C 190 178, 122 196, 122 270 L 122 392 C 122 418, 140 436, 166 436 L 346 436 C 372 436, 390 418, 390 392 L 390 270 C 390 196, 322 178, 322 150 Z" fill="none" stroke="#1d1b18" stroke-width="14" stroke-linejoin="round"/>
+  <rect x="176" y="92" width="160" height="58" rx="12" fill="#b5462f" stroke="#1d1b18" stroke-width="14"/>
+</svg>
