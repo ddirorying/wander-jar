@@ -69,6 +69,16 @@ export function EditDestinationSheet({
       return
     }
     setBusy(true)
+    setError('')
+    try {
+      await doSave()
+    } catch (e) {
+      setBusy(false)
+      setError(`저장하지 못했어요: ${(e as Error).message || e}`)
+    }
+  }
+
+  const doSave = async () => {
     const now = Date.now()
     const clean: Draft = {
       ...d,

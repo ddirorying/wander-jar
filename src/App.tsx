@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { HashRouter, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { BottomNav } from './components/BottomNav'
+import { Toaster, toast } from './components/Toaster'
 import { JarPage } from './pages/JarPage'
 import { SavingsPage } from './pages/SavingsPage'
 import { SettingsPage } from './pages/SettingsPage'
@@ -39,6 +40,7 @@ function Shell() {
         </Routes>
       </main>
       {!onDetail && <BottomNav onAdd={() => setCreating(true)} />}
+      <Toaster />
       {creating && (
         <EditDestinationSheet
           onClose={() => setCreating(false)}
@@ -46,6 +48,7 @@ function Shell() {
             // 시트가 쓰던 '뒤로가기' 자리를 새 여행지 화면으로 바꿔치기
             nav(`/d/${id}`, { replace: true })
             setCreating(false)
+            toast('보관함에 담았어요')
           }}
         />
       )}

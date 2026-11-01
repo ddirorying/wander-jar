@@ -21,7 +21,7 @@ function loadStyle(): Promise<StyleSpecification> {
   stylePromise ??= (async () => {
     try {
       const ctrl = new AbortController()
-      const t = setTimeout(() => ctrl.abort(), 7000)
+      const t = setTimeout(() => ctrl.abort(), 15000)
       const res = await fetch(STYLE_URL, { signal: ctrl.signal })
       clearTimeout(t)
       if (!res.ok) throw new Error()
@@ -58,6 +58,29 @@ export default function MapView({ stops, activeDay, center, picking, expanded, f
   const markers = useRef<maplibregl.Marker[]>([])
   const [ready, setReady] = useState(false)
   const [offline, setOffline] = useState(false)
+  const [failure, setFailure] = useState('')
+  const [styleRev, setStyleRev] = useState(0)
+  const [retrying, setRetrying] = useState(false)
+
+  // 바탕 지도 다시 불러오기 (인터넷이 돌아왔을 때 자동으로도)
+  const retry = async () => {
+    const m = map.current
+    if (!m || retrying) return
+    setRetrying(true)
+    const style = await loadStyle()
+    setRetrying(false)
+    if (style !== FALLBACK_STYLE) {
+      setOffline(false)
+      m.setStyle(style)
+    }
+  }
+  const retryRef = useRef(retry)
+  retryRef.current = retry
+  useEffect(() => {
+    const on = () => offline && retryRef.current()
+    window.addEventListener('online', on)
+    return () => window.removeEventListener('online', on)
+  }, [offline])
   const cb = useRef({ onPick, onSelect, picking })
   cb.current = { onPick, onSelect, picking }
 
@@ -81,7 +104,12 @@ export default function MapView({ stops, activeDay, center, picking, expanded, f
         },
       })
       m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
-      m.on('load', () => {
+      m.on('error', (e) => {
+        const msg = String((e as { error?: Error }).error?.message ?? '')
+        if (/webgl/i.test(msg)) setFailure('이 기기 브라우저에서 지도를 그릴 수 없어요 (WebGL).')
+      })
+      m.on('style.load', () => {
+        if (m.getSource('routes')) return
         m.addSource('routes', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
         m.addLayer({
           id: 'routes-casing',
@@ -102,6 +130,7 @@ export default function MapView({ stops, activeDay, center, picking, expanded, f
           },
         })
         setReady(true)
+        setStyleRev((r) => r + 1)
       })
       m.on('click', (e) => {
         if (cb.current.picking) cb.current.onPick({ lat: e.lngLat.lat, lng: e.lngLat.lng })
@@ -158,7 +187,7 @@ export default function MapView({ stops, activeDay, center, picking, expanded, f
       const mk = new maplibregl.Marker({ element: div, anchor: 'bottom' }).setLngLat([s.lng, s.lat]).addTo(m)
       markers.current.push(mk)
     }
-  }, [stops, activeDay, ready, focusId])
+  }, [stops, activeDay, ready, focusId, styleRev])
 
   // 보여줄 범위 맞추기
   const fit = () => {
@@ -209,7 +238,18 @@ export default function MapView({ stops, activeDay, center, picking, expanded, f
   return (
     <div className="map-box">
       <div ref={el} className="map-canvas" />
-      {offline && <p className="map-offline">바탕 지도를 불러오지 못했어요 · 핀과 선만 보여요</p>}
+      {failure ? (
+        <p className="map-offline">{failure}</p>
+      ) : (
+        offline && (
+          <div className="map-offline">
+            <span>바탕 지도를 불러오지 못했어요</span>
+            <button onClick={retry} disabled={retrying}>
+              {retrying ? '불러오는 중…' : '다시 시도'}
+            </button>
+          </div>
+        )
+      )}
     </div>
   )
 }
