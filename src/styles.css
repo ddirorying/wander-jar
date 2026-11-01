@@ -1513,7 +1513,16 @@ input[type='date'] {
   padding: 5px 12px;
   border-radius: 999px;
   white-space: nowrap;
-  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 3;
+}
+.map-offline button {
+  color: #fff;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 .map-expand {
   position: absolute;
@@ -1853,6 +1862,20 @@ input[type='date'] {
   white-space: nowrap;
 }
 
+.toasts {
+  position: fixed;
+  left: 16px;
+  right: 16px;
+  bottom: calc(var(--safe-b) + 90px);
+  z-index: 70;
+  display: grid;
+  gap: 8px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+.toasts .toast {
+  position: static;
+}
 .toast {
   position: fixed;
   left: 16px;
@@ -1868,4 +1891,16 @@ input[type='date'] {
   font-size: 14px;
   box-shadow: var(--shadow);
   animation: up 0.25s ease;
+}
+
+.toast-error {
+  background: var(--neg);
+  color: #fff;
+  display: grid;
+  gap: 6px;
+}
+.toast-error button {
+  justify-self: end;
+  font-weight: 700;
+  text-decoration: underline;
 }

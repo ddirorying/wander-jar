@@ -25,6 +25,13 @@ db.version(2).stores({
   stops: 'id, destinationId',
 })
 
+// 다른 창에서 새 버전이 데이터 구조를 바꾸면 이 창도 새로고침
+db.on('versionchange', () => {
+  db.close()
+  location.reload()
+  return false
+})
+
 export const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
